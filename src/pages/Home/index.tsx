@@ -1,17 +1,17 @@
-
-
 import React from 'react';
-
+import Header from '../../components/Header';
+import { Container } from '@mui/material';
+import { Outlet } from 'react-router-dom';
 
 const Home: React.FC = () => {
-
   return (
     <div>
-      <h1>Home Page</h1>
-     
+      <Header />
+      <Container>
+        <Outlet />
+      </Container>
     </div>
   );
 };
 
 export default Home;
-
