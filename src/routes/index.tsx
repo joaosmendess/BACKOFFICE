@@ -11,6 +11,7 @@ import ManageCompany from "../pages/Company/ManageCompany"
 import ListCompany from "../pages/Company/ListCompany"
 
 
+
 export default function AppRoutes() {
 	return (
 		<BrowserRouter>
@@ -19,6 +20,7 @@ export default function AppRoutes() {
 				<Route path="/dashboard" element={<Home />} />
 				<Route path="/aplicacao-permissao/gerenciar" element={<ManageApllication />} />
         <Route path="/aplicacao-permissao/lista" element={<ListApllication />} />
+		<Route path="/aplicacao-permissao/editar" element={<ManageApllication />} />
 		
 		<Route path="/empresa/gerenciar" element={<ManageCompany/>}  />
 		<Route path="/empresa/lista" element={<ListCompany/>}  />

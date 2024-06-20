@@ -51,6 +51,9 @@ const Header: React.FC = () => {
       case '/aplicacao-permissao/lista':
         setTitle('Lista de Aplicações para Permissão');
         break;
+        case '/aplicacao-permissao/editar':
+        setTitle('Editar Lista de Aplicações para Permissão');
+        break;
       case '/empresa/gerenciar':
         setTitle('Gerenciar módulo de permissão');
         break;

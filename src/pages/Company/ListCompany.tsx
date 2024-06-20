@@ -1,45 +1,60 @@
 import React, { useState, useEffect } from 'react';
 import Header from '../../components/Header';
-import { Container, TextField, Typography, Box, Paper, IconButton, List, ListItem, ListItemText, ListItemSecondaryAction } from '@mui/material';
+import { Container, TextField, Typography, Box, Paper, IconButton, List, ListItem, ListItemText, ListItemSecondaryAction, Menu, MenuItem } from '@mui/material';
 import { styled } from '@stitches/react';
 import SearchIcon from '@mui/icons-material/Search';
 import { Icon } from '@iconify/react';
+import { getCompanies } from '../../services/api';
 
 const ListContainer = styled(Container, {
   marginTop: '20px',
 });
 
-const CompanyItem = styled(Paper, {
-  padding: '10px',
-  margin: '10px 0',
-  display: 'flex',
-  justifyContent: 'space-between',
-});
-
 interface Company {
   id: number;
   name: string;
-  address: string;
-  contact: string;
 }
 
 const ListCompany: React.FC = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  //anchorEl gerencia o elemento HTML ao qual o menu está ancorado.
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  //selectedCompany armazena a empresa selecionada para edição ou exclusão.
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
 
-  // Simulate fetching data
   useEffect(() => {
-    setCompanies([
-      { id: 1, name: 'Company A', address: '123 Main St', contact: 'contact@companya.com' },
-      { id: 2, name: 'Company B', address: '456 Elm St', contact: 'contact@companyb.com' },
-      { id: 3, name: 'Company C', address: '789 Oak St', contact: 'contact@companyc.com' },
-      // Adicione mais itens conforme necessário
-    ]);
+    const fetchCompanies = async () => {
+      const data = await getCompanies();
+      setCompanies(data);
+    };
+
+    fetchCompanies();
   }, []);
 
   const filteredCompanies = companies.filter(company =>
     company.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleMenuClick = (event: React.MouseEvent<HTMLButtonElement>, company: Company) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedCompany(company);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedCompany(null);
+  };
+
+  const handleEdit = () => {
+    // Lógica para editar a empresa
+    handleMenuClose();
+  };
+
+  const handleDelete = () => {
+    // Lógica para deletar a empresa
+    handleMenuClose();
+  };
 
   return (
     <div>
@@ -69,20 +84,19 @@ const ListCompany: React.FC = () => {
             <ListItem key={company.id} component={Paper} sx={{ marginBottom: 2 }}>
               <ListItemText
                 primary={company.name}
-                secondary={
-                  <>
-                    <Typography component="span" variant="body2" color="textPrimary">
-                      {company.address}
-                    </Typography>
-                    <br />
-                    {company.contact}
-                  </>
-                }
               />
               <ListItemSecondaryAction>
-                <IconButton edge="end" aria-label="more-options">
+                <IconButton edge="end" aria-label="more-options" onClick={(e) => handleMenuClick(e, company)}>
                   <Icon icon="mdi:dots-vertical" />
                 </IconButton>
+                <Menu
+                  anchorEl={anchorEl}
+                  open={Boolean(anchorEl)}
+                  onClose={handleMenuClose}
+                >
+                  <MenuItem onClick={handleEdit}>Editar</MenuItem>
+                  <MenuItem onClick={handleDelete}>Deletar</MenuItem>
+                </Menu>
               </ListItemSecondaryAction>
             </ListItem>
           ))}
