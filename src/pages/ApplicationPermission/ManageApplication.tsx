@@ -1,27 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Container, TextField, Button, Typography, Box, CircularProgress, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import { Container, TextField, Typography, Box,  Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Button } from '@mui/material';
 import Header from '../../components/Header';
 import { styled } from '@stitches/react';
 import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css'; // Estilos do Quill
+import 'react-quill/dist/quill.snow.css';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { green } from '@mui/material/colors';
+import SaveButton from '../../components/SaveButton';
+import Notification from '../../components/Notification';
 
 const FormContainer = styled(Container, {
   marginTop: '20px',
   display: 'flex',
   flexDirection: 'column',
-  gap: '20px', // Espaçamento entre os elementos
-});
-
-const SaveButton = styled(Button, {
-  alignSelf: 'flex-start',
-});
-
-const ErrorMessage = styled('div', {
-  color: 'red',
-  marginBottom: '20px',
+  gap: '20px',
 });
 
 const MAX_DESCRIPTION_LENGTH = 255;
@@ -34,8 +26,10 @@ const ManageApplication: React.FC = () => {
   const [homologUrl, setHomologUrl] = useState('');
   const [productionUrl, setProductionUrl] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
+  const [severity, setSeverity] = useState<'success' | 'error'>('success');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
 
   const quillRef = useRef<ReactQuill | null>(null);
   const navigate = useNavigate();
@@ -64,21 +58,23 @@ const ManageApplication: React.FC = () => {
   };
 
   const handleSave = async () => {
-    // Verificar se todos os campos obrigatórios estão preenchidos
     if (!name || !description || !developUrl || !homologUrl || !productionUrl) {
-      setError('Todos os campos obrigatórios devem ser preenchidos.');
+      setMessage('Todos os campos obrigatórios devem ser preenchidos.');
+      setSeverity('error');
+      setNotificationOpen(true);
       return;
     }
 
-    // Verificar se o nome já está em uso
     const nameExists = await checkNameExists(name);
     if (nameExists) {
-      setError(`O nome ${name} já está em uso`);
+      setMessage(`O nome ${name} já está em uso`);
+      setSeverity('error');
+      setNotificationOpen(true);
       return;
     }
 
     setLoading(true);
-    setError('');
+    setMessage(null);
 
     const formData = {
       name,
@@ -88,17 +84,17 @@ const ManageApplication: React.FC = () => {
       productionUrl,
     };
 
-    console.log('Enviando dados:', formData); // Log dos dados enviados
-
     const request = id
       ? axios.put(`http://localhost:8989/api/applications/${id}`, formData)
       : axios.post('http://localhost:8989/api/applications', formData);
 
     request
       .then((response) => {
-        console.log('Data saved successfully:', response.data);
         setLoading(false);
         setDialogOpen(true);
+        setMessage('Operação concluída com sucesso');
+        setSeverity('success');
+        setNotificationOpen(true);
       })
       .catch((error) => {
         setLoading(false);
@@ -108,13 +104,12 @@ const ManageApplication: React.FC = () => {
 
   const handleError = (error: any) => {
     if (error.response) {
-      // Erros vindos do servidor
-      setError(`Erro: ${error.response.data.message || error.message}`);
+      setMessage(`Erro: ${error.response.data.message || error.message}`);
     } else {
-      // Outros erros
-      setError(`Erro: ${error.message}`);
+      setMessage(`Erro: ${error.message}`);
     }
-    console.error('Error saving data:', error);
+    setSeverity('error');
+    setNotificationOpen(true);
   };
 
   const stripHtmlTags = (html: string) => {
@@ -139,14 +134,15 @@ const ManageApplication: React.FC = () => {
 
   const descriptionLength = stripHtmlTags(description).length;
 
+  const handleCloseNotification = () => {
+    setNotificationOpen(false);
+  };
+
   return (
     <div>
       <Header />
       <FormContainer maxWidth="md">
-        <Typography variant="h4" component="h2">
-          Gerenciar aplicação para permissão
-        </Typography>
-        {error && <ErrorMessage>{error}</ErrorMessage>}
+   
         <TextField
           label="Nome"
           placeholder="Ex.: SGC"
@@ -172,8 +168,6 @@ const ManageApplication: React.FC = () => {
           </Typography>
         </Box>
         <TextField
-          placeholder=''
-          aria-label="URL de desenvolvimento"
           label="URL de desenvolvimento"
           variant="outlined"
           fullWidth
@@ -183,8 +177,6 @@ const ManageApplication: React.FC = () => {
           sx={{ marginBottom: 2 }}
         />
         <TextField
-          placeholder=''
-          aria-label="URL de homologação"
           label="URL de homologação"
           variant="outlined"
           fullWidth
@@ -194,8 +186,6 @@ const ManageApplication: React.FC = () => {
           sx={{ marginBottom: 2 }}
         />
         <TextField
-          placeholder=''
-          aria-label="URL de produção"
           label="URL de produção"
           variant="outlined"
           fullWidth
@@ -204,17 +194,10 @@ const ManageApplication: React.FC = () => {
           onChange={(e) => setProductionUrl(e.target.value)}
           sx={{ marginBottom: 2 }}
         />
-        <SaveButton
-          variant="contained"
-          color="primary"
-          onClick={handleSave}
-          disabled={loading}
-        >
-          {loading ? <CircularProgress size={24} /> : 'Salvar'}
-        </SaveButton>
+        <SaveButton onClick={handleSave} saving={loading} />
       </FormContainer>
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
-        <DialogTitle color={green}>Operação concluída</DialogTitle>
+        <DialogTitle color="primary">Operação concluída</DialogTitle>
         <DialogContent>
           <DialogContentText>
             A aplicação foi {id ? 'editada' : 'salva'} com sucesso.
@@ -225,6 +208,12 @@ const ManageApplication: React.FC = () => {
           <Button onClick={() => setDialogOpen(false)}>Continuar na página</Button>
         </DialogActions>
       </Dialog>
+      <Notification
+        message={message}
+        severity={severity}
+        open={notificationOpen}
+        onClose={handleCloseNotification}
+      />
     </div>
   );
 };

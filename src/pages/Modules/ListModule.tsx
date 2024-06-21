@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import Header from '../../components/Header';
-import { Container, TextField, Typography, Box, CircularProgress, Button } from '@mui/material';
+import { Container, TextField, Box, CircularProgress, Button } from '@mui/material';
 import { styled } from '@stitches/react';
 import SearchIcon from '@mui/icons-material/Search';
-import { getCompanies, deleteCompany } from '../../services/api';
-import { saveAs } from 'file-saver';
-import { stringify } from 'csv-stringify/browser/esm';
+import { useNavigate } from 'react-router-dom';
+import { getModules, deleteModule } from '../../services/api';
+import Papa from 'papaparse';
 import ItemList from '../../components/ItemList';
-import { Company } from '../../types';
+import { Module } from '../../types';
 import Notification from '../../components/Notification';
 import ConfirmDialog from '../../components/ConfirmDialog';
 
@@ -15,97 +15,91 @@ const ListContainer = styled(Container, {
   marginTop: '20px',
 });
 
-const ListCompany: React.FC = () => {
-  const [companies, setCompanies] = useState<Company[]>([]);
+const ModuleList: React.FC = () => {
+  const [modules, setModules] = useState<Module[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [severity, setSeverity] = useState<'success' | 'error' | 'info'>('success');
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
+  const [moduleToDelete, setModuleToDelete] = useState<Module | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchCompanies = async () => {
+    const fetchModules = async () => {
       try {
-        const data = await getCompanies();
-        setCompanies(data);
+        const data = await getModules();
+        setModules(data);
       } catch (error) {
-        console.error('Error fetching companies:', error);
-        setMessage('Erro ao buscar empresas');
+        console.error('Error fetching modules:', error);
+        setMessage('Erro ao buscar módulos');
         setSeverity('error');
         setNotificationOpen(true);
       } finally {
         setLoading(false);
       }
     };
-    fetchCompanies();
+    fetchModules();
   }, []);
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
   };
 
-  const handleEdit = (company: Company) => {
-    console.log('Edit company:', company);
-    setMessage('Editando empresa...');
-    setSeverity('info');
-    setNotificationOpen(true);
+  const handleEdit = (module: Module) => {
+    navigate('/modulos/editar', { state: { module } });
   };
 
-  const handleOpenDialog = (company: Company) => {
-    setCompanyToDelete(company);
+  const handleOpenDialog = (module: Module) => {
+    setModuleToDelete(module);
     setDialogOpen(true);
   };
 
   const handleCloseDialog = () => {
     setDialogOpen(false);
-    setCompanyToDelete(null);
+    setModuleToDelete(null);
   };
 
   const handleDelete = async () => {
-    if (companyToDelete) {
+    if (moduleToDelete) {
       setDeleting(true);
       try {
-        await deleteCompany(companyToDelete.id);
-        setCompanies(companies.filter(comp => comp.id !== companyToDelete.id));
-        setMessage('Empresa excluída com sucesso');
+        await deleteModule(moduleToDelete.id);
+        setModules(modules.filter(mod => mod.id !== moduleToDelete.id));
+        setMessage('Módulo excluído com sucesso');
         setSeverity('success');
       } catch (error) {
-        console.error('Error deleting company:', error);
-        setMessage('Erro ao excluir empresa');
+        console.error('Error deleting module:', error);
+        setMessage('Erro ao excluir módulo');
         setSeverity('error');
       } finally {
         setNotificationOpen(true);
         setDialogOpen(false);
-        setCompanyToDelete(null);
+        setModuleToDelete(null);
         setDeleting(false);
       }
     }
   };
 
-  const handleExportCSV = () => {
-    const data = companies.map(({ id, name, superUser }) => ({ ID: id, Nome: name, 'Super Usuário': superUser }));
-    stringify(
-      data,
-      {
-        header: true,
-      },
-      (err, output) => {
-        if (!err) {
-          const blob = new Blob([output], { type: 'text/csv;charset=utf-8;' });
-          saveAs(blob, 'companies.csv');
-        }
-      }
-    );
+  const handleExportToCSV = () => {
+    const csv = Papa.unparse(modules);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.setAttribute('download', 'modules.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
-  const filteredCompanies = companies.filter(company =>
-    company.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredModules = modules.filter(module =>
+    module.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleNotificationClose = () => {
+  const handleCloseSnackbar = () => {
     setNotificationOpen(false);
   };
 
@@ -132,16 +126,16 @@ const ListCompany: React.FC = () => {
             <CircularProgress />
           </Box>
         ) : (
-          <ItemList items={filteredCompanies} onEdit={handleEdit} onDelete={handleOpenDialog} />
+          <ItemList items={filteredModules} onEdit={handleEdit} onDelete={handleOpenDialog} />
         )}
-        <Button variant="contained" color="primary" onClick={handleExportCSV} disabled={companies.length === 0} sx={{ marginTop: 2 }}>
+        <Button variant="contained" color="primary" onClick={handleExportToCSV} disabled={modules.length === 0} sx={{ marginTop: 2 }}>
           Exportar para CSV
         </Button>
       </ListContainer>
       <ConfirmDialog
         open={dialogOpen}
         title="Confirmação de exclusão"
-        content="Tem certeza de que deseja excluir esta empresa? Esta ação não pode ser desfeita."
+        content="Tem certeza de que deseja excluir este módulo? Esta ação não pode ser desfeita."
         onConfirm={handleDelete}
         onCancel={handleCloseDialog}
         loading={deleting}
@@ -150,10 +144,10 @@ const ListCompany: React.FC = () => {
         message={message}
         severity={severity}
         open={notificationOpen}
-        onClose={handleNotificationClose}
+        onClose={handleCloseSnackbar}
       />
     </div>
   );
 };
 
-export default ListCompany;
+export default ModuleList;

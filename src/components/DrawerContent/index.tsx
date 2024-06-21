@@ -22,7 +22,7 @@ const DrawerContent: React.FC<{ toggleDrawer: (open: boolean) => (event: React.K
       icon: 'mdi:office-building',
       items: [
         { text: 'Gerenciar empresa', path: '/empresa/gerenciar' },
-        { text: 'Lista de páginas', path: '/empresa/lista' },
+        { text: 'Lista de empresas', path: '/empresa/lista' },
       ],
     },
     {
@@ -40,6 +40,16 @@ const DrawerContent: React.FC<{ toggleDrawer: (open: boolean) => (event: React.K
         { text: 'Gerenciar aplicação para permissão', path: '/aplicacao-permissao/gerenciar' },
         { text: 'Lista de aplicações para permissão', path: '/aplicacao-permissao/lista' },
       ],
+      
+    },
+    {
+      title: 'Módulo para permissão',
+      icon: 'mdi:account-key',
+      items: [
+        { text: 'Gerenciar módulo para permissão', path: '/modulos/gerenciar' },
+        { text: 'Lista de módulos para permissão', path: '/modulos/lista' },
+      ],
+      
     },
     {
       title: 'Convites',

@@ -8,7 +8,7 @@ module.exports = defineConfig({
    supportFile: 'cypress/support/index.js',
    viewportWidth: 1280,
    viewportHeight: 720,
-    defaultCommandTimeout: 30000,
+    defaultCommandTimeout: 20000,
    setupNodeEvents(on, config) {
      // Implemente os eventos de node aqui, isso substitui o pluginsFile
      require('./cypress/plugins/index.cjs')(on, config);

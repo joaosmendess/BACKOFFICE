@@ -1,107 +1,93 @@
 import React, { useState, useEffect } from 'react';
 import Header from '../../components/Header';
-import { Container, TextField, Typography, Box, Paper, IconButton, CircularProgress, Menu, MenuItem, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Button, Snackbar, Alert } from '@mui/material';
+import { Container, TextField, Box, CircularProgress, Snackbar, Alert } from '@mui/material';
 import { styled } from '@stitches/react';
 import SearchIcon from '@mui/icons-material/Search';
-import { Icon } from '@iconify/react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { getApplications, deleteApplication } from '../../services/api';
+import ItemList from '../../components/ItemList';
+import { Application } from '../../types';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 const ListContainer = styled(Container, {
   marginTop: '20px',
 });
 
-const ApplicationItem = styled(Paper, {
-  padding: '10px',
-  margin: '10px 0',
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-});
-
-interface Application {
-  id: number;
-  name: string;
-  description: string;
-  developUrl: string;
-  homologUrl: string;
-  productionUrl: string;
-}
-
 const ListApplication: React.FC = () => {
   const [applications, setApplications] = useState<Application[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
+  const [messageType, setMessageType] = useState<'success' | 'error'>('success');
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [applicationToDelete, setApplicationToDelete] = useState<Application | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [successSnackbarOpen, setSuccessSnackbarOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    axios.get('http://localhost:8989/api/applications')
-      .then((response) => {
-        setApplications(response.data);
-        setLoading(false);
-      })
-      .catch((error) => {
+    const fetchApplications = async () => {
+      try {
+        const data = await getApplications();
+        setApplications(data);
+      } catch (error) {
         console.error('Error fetching applications:', error);
+        setMessage('Erro ao buscar aplicações');
+        setMessageType('error');
+        setNotificationOpen(true);
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+    fetchApplications();
   }, []);
 
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, application: Application) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedApplication(application);
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.target.value);
   };
 
-  const handleMenuClose = () => {
-    setAnchorEl(null);
+  const handleEdit = (application: Application) => {
+    navigate('/aplicacao-permissao/editar', { state: { application } });
   };
 
-  const handleEdit = () => {
-    if (selectedApplication) {
-      navigate('/aplicacao-permissao/editar', { state: { application: selectedApplication } });
-    }
-    handleMenuClose();
+  const handleOpenDialog = (application: Application) => {
+    setApplicationToDelete(application);
+    setDialogOpen(true);
   };
 
-  const handleDeleteOpen = () => {
-    if (selectedApplication) {
-      setConfirmDeleteOpen(true);
-    } else {
-      console.error('No application selected for deletion');
-    }
-    handleMenuClose();
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setApplicationToDelete(null);
   };
 
-  const handleDeleteClose = () => {
-    setConfirmDeleteOpen(false);
-  };
-
-  const handleDeleteConfirm = () => {
-    if (selectedApplication) {
+  const handleDelete = async () => {
+    if (applicationToDelete) {
       setDeleting(true);
-      axios.delete(`http://localhost:8989/api/applications/${selectedApplication.id}`)
-        .then(() => {
-          setApplications(applications.filter(app => app.id !== selectedApplication.id));
-          setDeleting(false);
-          setSuccessSnackbarOpen(true);
-          handleDeleteClose();
-        })
-        .catch((error) => {
-          console.error('Error deleting application:', error);
-          setDeleting(false);
-        });
-    } else {
-      console.error('No application selected for deletion');
+      try {
+        await deleteApplication(applicationToDelete.id);
+        setApplications(applications.filter(app => app.id !== applicationToDelete.id));
+        setMessage('Aplicação excluída com sucesso');
+        setMessageType('success');
+      } catch (error) {
+        console.error('Error deleting application:', error);
+        setMessage('Erro ao excluir aplicação');
+        setMessageType('error');
+      } finally {
+        setNotificationOpen(true);
+        setDialogOpen(false);
+        setApplicationToDelete(null);
+        setDeleting(false);
+      }
     }
   };
 
   const filteredApplications = applications.filter(application =>
     application.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleCloseSnackbar = () => {
+    setNotificationOpen(false);
+  };
 
   return (
     <div>
@@ -113,12 +99,10 @@ const ListApplication: React.FC = () => {
             placeholder="Pesquisar"
             fullWidth
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
             InputProps={{
               endAdornment: (
-                <IconButton>
-                  <SearchIcon />
-                </IconButton>
+                <SearchIcon />
               ),
             }}
           />
@@ -128,53 +112,24 @@ const ListApplication: React.FC = () => {
             <CircularProgress />
           </Box>
         ) : (
-          filteredApplications.map(application => (
-            <ApplicationItem key={application.id}>
-              <Box>
-                <Typography variant="h6">{application.name}</Typography>
-                <Typography variant="body1" dangerouslySetInnerHTML={{ __html: application.description }} />
-              </Box>
-              <IconButton aria-label="menu" onClick={(event) => handleMenuOpen(event, application)}>
-                <Icon icon="mdi:dots-vertical" />
-              </IconButton>
-            </ApplicationItem>
-          ))
+          <ItemList items={filteredApplications} onEdit={handleEdit} onDelete={handleOpenDialog} />
         )}
       </ListContainer>
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-      >
-        <MenuItem onClick={handleEdit} aria-label='editar'>Editar</MenuItem>
-        <MenuItem onClick={handleDeleteOpen} aria-label='delete'>Excluir</MenuItem>
-      </Menu>
-      <Dialog
-        open={confirmDeleteOpen}
-        onClose={handleDeleteClose}
-      >
-        <DialogTitle>Confirmação de exclusão</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Tem certeza de que deseja excluir esta aplicação? Esta ação não pode ser desfeita.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDeleteClose} color="error" disabled={deleting}>
-            Não
-          </Button>
-          <Button onClick={handleDeleteConfirm} color="error" aria-label='confirm-delete' disabled={deleting}>
-            {deleting ? <CircularProgress size={24} /> : 'Sim'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDialog
+        open={dialogOpen}
+        title="Confirmação de exclusão"
+        content="Tem certeza de que deseja excluir esta aplicação? Esta ação não pode ser desfeita."
+        onConfirm={handleDelete}
+        onCancel={handleCloseDialog}
+        loading={deleting}
+      />
       <Snackbar
-        open={successSnackbarOpen}
+        open={message !== null}
         autoHideDuration={6000}
-        onClose={() => setSuccessSnackbarOpen(false)}
+        onClose={handleCloseSnackbar}
       >
-        <Alert onClose={() => setSuccessSnackbarOpen(false)} severity="success" sx={{ width: '100%' }}>
-          Aplicação excluída com sucesso!
+        <Alert onClose={handleCloseSnackbar} severity={messageType} sx={{ width: '100%' }}>
+          {message}
         </Alert>
       </Snackbar>
     </div>
